@@ -121,10 +121,22 @@ func (s *APIServer) handleLogin(w http.ResponseWriter, r *http.Request) error {
 	}
 	acc, err := s.store.GetAccountByNumber(req.Number)
 	if err != nil {
+		WriteJson(w, http.StatusNotFound, apiError{Error: fmt.Sprintf("account with number [%d] not found", req.Number)})
 		return err
 	}
-	fmt.Printf("%+v\n", acc)
-	return WriteJson(w, http.StatusOK, req)
+	if !acc.ValidatePassword(req.Password) {
+		return fmt.Errorf("not authenticated")
+	}
+	token, err := createJWT(acc)
+	if err != nil {
+		return err
+	}
+	resp := LoginResponse{
+		Token:  token,
+		Number: acc.Number,
+	}
+	// fmt.Printf("%+v\n", acc)
+	return WriteJson(w, http.StatusOK, resp)
 }
 
 func getID(r *http.Request) (int, error) {
